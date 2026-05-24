@@ -1,6 +1,6 @@
 # Agent Skills
 
-个人使用的 Agent Skills 集合。
+一些实用的 Agent Skills 集合。
 
 ## Skills 列表
 
