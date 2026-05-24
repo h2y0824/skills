@@ -1,0 +1,6 @@
+interface:
+  display_name: "GitHub Weekly Feishu"
+  short_description: "GitHub weekly articles for Feishu"
+  default_prompt: "Use $github-weekly-feishu to create this week's GitHub hot-project article, export a DOCX, and send it to Feishu."
+policy:
+  allow_implicit_invocation: true
