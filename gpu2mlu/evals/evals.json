@@ -1,0 +1,23 @@
+{
+  "skill_name": "gpu2mlu",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我有一个 CUDA 的向量加法 kernel（每个线程处理一个元素，blockDim=256），现在要移到寒武纪 MLU 上跑。请把它改写成 BANG C，并给我 cncc 编译命令和主机侧启动代码。目标板卡我还没确认型号。",
+      "expected_output": "不硬编码架构；先要求用 cnmon/cncc 确认目标架构和版本。给出按 tile（≥128B、taskDim 切分、尾块处理）重写的 __mlu_entry__ kernel，数据先 __memcpy 到 __nram__ 再用 __bang_add，主机侧用 cnrtMalloc/cnrtQueueCreate/Kernel<<<dim,ktype,queue>>>/cnrtQueueSync，并明确 cncc 默认 -O0 需加 -O3、--bang-mlu-arch 必填。指出不能逐线程翻译、taskId/taskDim 语义、对齐与 128B 元素数约束。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "我们是一个 C++ 推理工程，CMake 里 enable_language(CUDA)，有一个自定义的 NMS kernel，另外大量用了 cuBLAS SGEMM 和 cuDNN 卷积。要整体迁到 MLU，应该分几步做？构建系统怎么改？哪些地方风险最大？",
+      "expected_output": "给出分阶段迁移计划：冻结 GPU 基线 → 扫描盘点 → 路线决策（cuBLAS→cnnlMatMul/cnnlBatchMatMul，cuDNN→CNNL，自定义 NMS→BANG C/mlu-ops/cnnlNms）→ 构建系统（移除 CUDA language，.mlu 用 cncc，主机代码保留 g++，extern \"C\" 启动封装或 CMAKE_CXX_COMPILER=cncc）→ 分层移植 → 正确性/性能验收。指出 NMS 是精度敏感高风险项、浮点归约顺序差异、cnrtMemcpyAsync 参数顺序、默认 -O0。给出目录结构与最小 CMake 示例。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "我在 MLU 上写了一个逐元素 kernel，__bang_add 的结果有一部分是乱的，少量数据看起来正常，数据量一大就错。帮我排查可能原因和修复方法。",
+      "expected_output": "按优先级排查：1) 输入/输出是否真在 __nram__（GDRAM 指针直接参与 __bang_add 是错的）；2) count*sizeof(type) 是否 128B 整数倍、地址是否 64B 对齐；3) taskId 切分偏移是否重叠/越界、最后一个 Task 尾块；4) __memcpy_async 后是否缺 __sync、主机侧是否 cnrtQueueSync；5) 数组未初始化/读取越界；6) tile 超出 NRAM。给出尾块模板（主路径向量、尾块标量或 padding 且不越界写回）和最小复现/定位建议（单 Task、特殊长度、__bang_printf、CNPerf/CNGDB）。",
+      "files": []
+    }
+  ]
+}
